@@ -1,0 +1,76 @@
+Labor Arbitrage Optimization Problem
+
+Business Context
+A technology company is looking to optimize their global workforce allocation to minimize total labor costs while maintaining operational effectiveness. The company has identified multiple roles that need to be filled and several potential global locations where they could establish operations.
+The challenge is to determine the optimal assignment of roles to geographical locations, considering factors such as:
+
+Labor cost differences across regions
+Local talent availability and quality
+Time zone compatibility for collaboration
+Infrastructure requirements
+Communication needs
+Setup costs for new locations
+Required headcount for the various roles
+
+Filled roles are integer values as we cannot have fractional employees.
+
+The json file of data can be loaded from 'src/data/labor_arbitrage_data.json'
+For the provided data, the solver should analyze the data provided and identify opportunities such as:
+
+Key fields in the json are:
+
+Roles 
+
+Required Headcount: Number of employees needed for each role
+Skill Level Required: Technical complexity (1-5 scale)
+Remote Work Compatibility: How well the role works remotely (1-5 scale)
+Communication Intensity: Level of collaboration needed (1-5 scale)
+Time Zone Sensitivity: Need to work during business hours (1-5 scale)
+
+Locations 
+
+Cost Multiplier: Relative labor cost compared to base location
+Talent Availability: Local skill pool quality (1-5 scale)
+Infrastructure Quality: Technology and business infrastructure (1-5 scale)
+Time Zone Offset: Hours difference from headquarters
+Language Compatibility: English proficiency level (1-5 scale)
+Maximum Capacity: Maximum employees supportable at location
+Setup Cost: One-time cost to establish operations
+
+Additional Parameters
+
+Cost Matrix: Annual salary for each role-location combination
+Compatibility Matrix: How well each role fits each location (1-5 scale)
+Base Salaries: Baseline annual compensation by role
+
+Annual salary costs by location
+Setup costs
+Total cost savings vs. all-domestic scenario
+
+Utilization Metrics: Capacity utilization by location
+Risk Assessment: Time zone coverage, skill concentration, etc.
+
+Success Metrics
+
+Cost Reduction: Percentage savings compared to base case (all roles in HQ location)
+Feasibility: All constraints satisfied
+Risk Balance: Reasonable geographic distribution
+Operational Viability: Appropriate time zone coverage for critical functions
+
+Test Scenarios
+
+Base Case: Unconstrained cost minimization
+Quality Constrained: Add minimum compatibility and infrastructure requirements
+Time Zone Constrained: Enforce business hours overlap requirements
+Capacity Limited: Reduce maximum capacity at low-cost locations
+Mixed Objectives: Balance cost vs. risk (multi-objective optimization)
+
+Sample Expected Output
+For the provided sample data, the solver should identify opportunities such as:
+
+Moving Customer Support and QA Testing to Philippines/India (low cost, high compatibility)
+Keeping Product Managers and critical engineering roles in US (high collaboration needs)
+Establishing mid-cost locations like Poland for roles requiring European time zone coverage
+Optimizing between setup costs and ongoing salary savings
+
+The optimal solution should achieve 25-40% cost reduction while maintaining operational effectiveness.

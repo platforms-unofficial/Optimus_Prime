@@ -1,0 +1,11 @@
+The demand for two products in each of the last four weeks is shown below.
+
+                         Week
+                      1  2  3  4
+Demand - product 1    23 27 34 40
+Demand - product 2    11 13 15 14
+Apply exponential smoothing with a smoothing constant of 0.7 to generate a forecast for the demand for these products in week 5.
+
+These products are produced using two machines, X and Y. Each unit of product 1 that is produced requires 15 minutes processing on machine X and 25 minutes processing on machine Y. Each unit of product 2 that is produced requires 7 minutes processing on machine X and 45 minutes processing on machine Y. The available time on machine X in week 5 is forecast to be 20 hours and on machine Y in week 5 is forecast to be 15 hours. Each unit of product 1 sold in week 5 gives a contribution to profit of £10 and each unit of product 2 sold in week 5 gives a contribution to profit of £4.
+
+It may not be possible to produce enough to meet your forecast demand for these products in week 5 and each unit of unsatisfied demand for product 1 costs £3, each unit of unsatisfied demand for product 2 costs £1.

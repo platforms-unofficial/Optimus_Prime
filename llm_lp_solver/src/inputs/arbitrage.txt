@@ -1,0 +1,20 @@
+A technology company is looking to optimize their global workforce allocation to minimize total labor costs while maintaining operational effectiveness. The company has identified multiple roles that need to be filled and several potential global locations where they could establish operations.
+The challenge is to determine the optimal assignment of roles to geographical locations, considering factors such as:
+
+Labor cost differences across regions
+Local talent availability and quality
+Time zone compatibility for collaboration
+Infrastructure requirements
+Communication needs
+Setup costs for new locations
+
+The json file of data can be loaded from 'src/data/labor_arbitrage_data.json'
+
+For the provided data, the solver should analyze the data provided and identify opportunities such as:
+
+Moving Customer Support and QA Testing to Philippines/India (low cost, high compatibility)
+Keeping Product Managers and critical engineering roles in US (high collaboration needs)
+Establishing mid-cost locations like Poland for roles requiring European time zone coverage
+Optimizing between setup costs and ongoing salary savings
+
+The optimal solution should achieve 25-40% cost reduction while maintaining operational effectiveness.

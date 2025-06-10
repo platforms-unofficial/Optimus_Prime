@@ -1,0 +1,21 @@
+Maximize the profit from selling two products, A and B. The profit from product A is $3 and from product B is $5. The constraints are as follows: 
+
+1. The total production time for both products cannot exceed 40 hours. Product A takes 2 hours to produce, and product B takes 1 hour.
+2. The total materials available for both products is limited to 30 units. Product A requires 1 unit of material, and product B requires 2 units.
+3. Both products must be produced in non-negative quantities.
+
+---
+
+Minimize the cost of transporting goods from a warehouse to three different stores. The cost per unit to store 1 is $4, to store 2 is $6, and to store 3 is $8. The constraints are:
+
+1. The total supply from the warehouse is 100 units.
+2. Store 1 requires at least 30 units, store 2 requires at least 20 units, and store 3 requires at least 50 units.
+3. The transportation must be non-negative.
+
+---
+
+Maximize the utility of a diet plan consisting of two foods, X and Y. Food X provides 2 utility points per serving, and food Y provides 3 utility points per serving. The constraints are:
+
+1. The total calorie intake must not exceed 200 calories. Food X has 50 calories per serving, and food Y has 100 calories.
+2. The total servings of food X must be at least 2.
+3. The servings of both foods must be non-negative.

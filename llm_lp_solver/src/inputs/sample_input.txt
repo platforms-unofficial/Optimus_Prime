@@ -1,0 +1,5 @@
+Maximize: 3x + 5y
+    Subject to:
+        2x + 3y <= 12
+        x + y <= 5
+        x, y >= 0
