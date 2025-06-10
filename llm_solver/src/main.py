@@ -17,17 +17,51 @@ def main():
         print("Please set it in a .env file or directly in your environment.")
         sys.exit(1)
     
-    # Get problem description from command line arguments or prompt user
-    if len(sys.argv) > 1:
-        problem_description = " ".join(sys.argv[1:])
-    else:
+    # Parse command line arguments
+    data = None
+    
+    if len(sys.argv) == 1:
+        # No arguments, prompt for problem description
         print("Please describe the linear programming problem you want to solve:")
         problem_description = input("> ")
+        print("Do you have a data file for context? (y/n)")
+        has_data = input("> ").lower().startswith('y')
+        
+        if has_data:
+            print("Enter the path to the data file:")
+            data_file_path = input("> ")
+            try:
+                with open(data_file_path, 'r') as f:
+                    data = f.read()
+                print(f"Data loaded from: {data_file_path}")
+            except Exception as e:
+                print(f"Error reading data file: {str(e)}")
+                print("Proceeding without data file.")
+    
+    elif len(sys.argv) == 2:
+        # Only problem description provided
+        problem_description = sys.argv[1]
+        print("No data file provided.")
+    
+    elif len(sys.argv) >= 3:
+        # Both problem description and data file provided
+        problem_description = sys.argv[1]
+        data_file_path = sys.argv[2]
+        
+        try:
+            with open(data_file_path, 'r') as f:
+                data = f.read()
+            print(f"Data loaded from: {data_file_path}")
+        except Exception as e:
+            print(f"Error reading data file {data_file_path}: {str(e)}")
+            print("Proceeding without data file.")
     
     print(f"\nSolving problem: {problem_description}\n")
+    if data:
+        print(f"Using supplementary data for context\n")
     
-    # Run the agent workflow
-    result = solve_lp_problem(problem_description)
+    # Run the agent workflow with problem description and data
+    result = solve_lp_problem(problem_description, data)
     
     # Display the mathematical model
     print("\n" + "=" * 50)

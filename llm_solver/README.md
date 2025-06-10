@@ -21,3 +21,5 @@ llm_lp_solver
 └── README.md
 ```
 
+## Example: How to run
+uv run src/main.py "$(cat src/inputs/arbitrage.txt)" src/data/labor_arbitrage_data.json

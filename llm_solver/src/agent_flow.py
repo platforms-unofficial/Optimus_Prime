@@ -20,6 +20,8 @@ llm_client = LLMClient()
 class AgentState(TypedDict):
     # The original problem description from the user
     problem_description: str
+    # Additional data that might be needed for the problem
+    data: str
     # The mathematical model (variables, constraints, objective)
     math_model: Optional[MathematicalModel]
     # The generated solver code
@@ -82,6 +84,9 @@ def generate_mathematical_model(state: AgentState) -> AgentState:
             using linear or mixed integer programming:
             {problem_description}
             
+            Data to be analyzed for help in determining the variables, constraints, and objective:
+            {data}
+
             {error_context}
             
             ## PRELIMINARY ANALYSIS (Complete all steps before formulating the model)
@@ -136,7 +141,14 @@ def generate_mathematical_model(state: AgentState) -> AgentState:
                - No "dangling" variables (defined but unused)
                - Units are consistent across the model
                - The model is mathematically coherent
-            
+
+            9. PROVIDE MODEL EXPLANATION:
+                - Explain your reasoning process for the model construction
+                - Describe how key problem elements were translated into mathematical components
+                - Clarify any assumptions or simplifications made
+                - Explain the relationship between the problem description and your mathematical model
+                - Discuss how your model will achieve the optimization objective
+    
             {format_instructions}
             """,
             input_variables=["problem_description"],
@@ -146,6 +158,7 @@ def generate_mathematical_model(state: AgentState) -> AgentState:
         # Generate the prompt
         prompt = prompt_template.format(
             problem_description=state['problem_description'],
+            data=state['data'],
             error_context=error_context
         )
         
@@ -177,7 +190,7 @@ def validate_mathematical_model(state: AgentState) -> AgentState:
     try:
         model = state["math_model"]
         problem_description = state["problem_description"]
-        
+        data = state["data"]
         # Check if we have a model
         if not model:
             raise ValueError("Model is missing")
@@ -212,7 +225,9 @@ def validate_mathematical_model(state: AgentState) -> AgentState:
 
         Original problem description:
         {problem_description}
-
+        Original data:
+        {data}
+        
         Mathematical model:
         Variables: {[v.model_dump() for v in model.variables]}
         Constraints: {[c.model_dump() for c in model.constraints]}
@@ -226,11 +241,13 @@ def validate_mathematical_model(state: AgentState) -> AgentState:
         5. Verify each critical constraint is properly represented
         6. Identify all components that affect the objective value
         7. Verify each component is represented in the objective function
+        8. Review the model explanation for accuracy and completeness
 
         Check specifically for:
         1. Missing ESSENTIAL variables: List only variables that are REQUIRED but not defined
         2. Missing CRITICAL constraints: List only constraints that are NECESSARY but not represented
         3. Incorrect objective: Note if ANY part of the objective function is missing or incorrect
+        4. Inadequate explanation: Note if the explanation is unclear or missing important reasoning
 
         {parser.get_format_instructions()}
 
@@ -492,7 +509,7 @@ def should_retry_model_generation(state: AgentState) -> Union[Literal["generate_
 def after_validation(state: AgentState) -> Union[Literal["generate_model"], Literal["generate_code"], Literal["end"]]:
     """Decide what to do after validation."""
     if state["error"]:
-        if state["model_generation_attempts"] < 5:
+        if state["model_generation_attempts"] < 15:
             return "generate_model"
         else:
             # We've tried 3 times and still have errors
@@ -576,7 +593,7 @@ def build_agent_graph():
     return workflow.compile()
 
 # Entry point function to run the agent workflow
-def solve_lp_problem(problem_description: str) -> Dict[str, Any]:
+def solve_lp_problem(problem_description: str, data:str) -> Dict[str, Any]:
     """
     Solve a linear programming problem described in natural language.
     
@@ -591,6 +608,7 @@ def solve_lp_problem(problem_description: str) -> Dict[str, Any]:
     # Initialize the state
     initial_state = AgentState(
         problem_description=problem_description,
+        data=data,
         math_model=None,
         solver_code=None,
         solution=None,
@@ -608,5 +626,6 @@ def solve_lp_problem(problem_description: str) -> Dict[str, Any]:
         "solution": result["solution"],
         "math_model": result["math_model"],
         "solver_code": result["solver_code"],
+        "model_explanation": result["math_model"].explanation if result["math_model"] else None,
         "conversation": [m.content for m in result["messages"]]
     }
