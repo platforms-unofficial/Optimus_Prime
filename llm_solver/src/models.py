@@ -25,3 +25,10 @@ class MathematicalModel(BaseModel):
     variables: List[Variable] = Field(..., description="The variables in the problem")
     constraints: List[Constraint] = Field(..., description="The constraints in the problem")
     objective: Objective = Field(..., description="The objective function to optimize")
+
+class ValidationResult(BaseModel):
+    valid: bool = Field(description="Whether the model is valid or not")
+    missing_variables: List[str] = Field(default_factory=list, description="List of missing variables")
+    missing_constraints: List[str] = Field(default_factory=list, description="Description of missing constraints")
+    incorrect_objective: Optional[str] = Field(default=None, description="Description if objective is wrong")
+    explanation: str = Field(default="", description="Detailed explanation of issues")

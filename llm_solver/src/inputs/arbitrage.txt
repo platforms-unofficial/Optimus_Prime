@@ -7,8 +7,11 @@ Time zone compatibility for collaboration
 Infrastructure requirements
 Communication needs
 Setup costs for new locations
+Required headcount for the various roles
 
 The json file of data can be loaded from 'src/data/labor_arbitrage_data.json'
+Carefully analyze this file to extract all the important fields, make sure we do not lose 
+any keys and entries in those keys.
 
 For the provided data, the solver should analyze the data provided and identify opportunities such as:
 
@@ -17,4 +20,4 @@ Keeping Product Managers and critical engineering roles in US (high collaboratio
 Establishing mid-cost locations like Poland for roles requiring European time zone coverage
 Optimizing between setup costs and ongoing salary savings
 
-The optimal solution should achieve 25-40% cost reduction while maintaining operational effectiveness.
+The optimal solution should achieve cost reduction while maintaining operational effectiveness.

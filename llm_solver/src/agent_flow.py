@@ -1,6 +1,7 @@
 from typing import Any, Dict, List, Literal, TypedDict, Union, Optional
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 import langgraph.graph as lg
+from pydantic import BaseModel, Field
 
 from langgraph.graph import END, StateGraph
 from langgraph.checkpoint.memory import MemorySaver
@@ -10,7 +11,7 @@ import json
 
 
 from llm_client import LLMClient
-from models import MathematicalModel, Variable, Constraint, Objective
+from models import MathematicalModel, Variable, Constraint, Objective, ValidationResult
 
 # Initialize LLM client
 llm_client = LLMClient()
@@ -35,6 +36,7 @@ class AgentState(TypedDict):
     # Detailed execution error information for code fixing
     execution_error: Optional[Dict[str, Any]]
 
+
 ### TODO: Have a higher level agent to generate high level scenarios 
 # and then have these agents work on those scenarios
 # after this agent or another will then compare the scenarios
@@ -47,23 +49,105 @@ def generate_mathematical_model(state: AgentState) -> AgentState:
         # Create a parser for the MathematicalModel
         parser = PydanticOutputParser(pydantic_object=MathematicalModel)
         
+        # Check if we have validation errors from a previous attempt
+        previous_error = state.get("error", "")
+        previous_model = state.get("math_model")
+        error_context = ""
+
+        if previous_error and previous_model:
+            # Provide the previous model for refinement with clearer instructions
+            error_context = f"""
+            IMPORTANT: Your previous model had these specific issues:
+            {previous_error}
+            
+            Here is your previous model:
+            Variables: {[v.model_dump() for v in previous_model.variables]}
+            Constraints: {[c.model_dump() for c in previous_model.constraints]}
+            Objective: {previous_model.objective.model_dump()}
+            
+            INSTRUCTIONS FOR REFINEMENT:
+            1. PRESERVE ALL CORRECT ELEMENTS from the previous model
+            2. ADD the missing variables identified in the error
+            3. ADD the missing constraints identified in the error
+            4. CORRECT the objective function as needed
+            5. DO NOT REMOVE any variables, constraints, or objective terms that were not specifically mentioned as problematic
+            
+            Build upon the previous model - do not start from scratch.
+            """
+
         # Create a prompt template with the parser's format instructions
         prompt_template = PromptTemplate(
             template="""
-            Create a mathematical model for the following optimization problem 
+            Create a comprehensive mathematical model for the following optimization problem 
             using linear or mixed integer programming:
             {problem_description}
             
-            {format_instructions}
+            {error_context}
             
-            Make sure all variables used in constraints and objective are defined.
+            ## PRELIMINARY ANALYSIS (Complete all steps before formulating the model)
+            
+            1. EXTRACT KEY ELEMENTS:
+               - List all resources/items mentioned (e.g., products, machines, locations)
+               - List all activities/decisions mentioned (e.g., production amounts, assignments)
+               - List all time periods if applicable
+               - Identify what is being optimized (minimized or maximized)
+            
+            2. IDENTIFY DECISION VARIABLES:
+               - For each decision that needs to be made, create a variable
+               - Specify variable type (continuous, binary, integer)
+               - Include indexes needed (e.g., for different products, locations, time periods)
+               - Consider if auxiliary variables are needed for complex constraints
+            
+            3. IDENTIFY ALL CONSTRAINTS:
+               - Resource limitations (e.g., capacity, budget, time)
+               - Requirements (e.g., demand must be met, minimum service levels)
+               - Logical relationships (e.g., if X happens, then Y must happen)
+               - Physical limitations (e.g., non-negativity, upper bounds)
+               - Balance equations (e.g., flow in = flow out)
+            
+            4. IDENTIFY OBJECTIVE COMPONENTS:
+               - All costs/profits associated with decision variables
+               - Fixed costs/revenues
+               - Penalties or bonuses
+            
+            ## MATHEMATICAL FORMULATION
+            
+            5. DEFINE VARIABLES FORMALLY:
+               - Use meaningful, descriptive names that directly reference the problem domain
+               - For roles, locations, products, etc., use their actual names (e.g., x_CustomerSupport_Philippines instead of x_r1_l2)
+               - For indexed variables, use descriptive prefixes with specific entity names (e.g., assign_Engineer_London instead of a_1_3)
+               - Specify domains and bounds precisely
+               - Group related variables together
+            
+            6. FORMULATE CONSTRAINTS EXPLICITLY:
+               - Express each constraint mathematically
+               - Use the exact operators (≤, ≥, =)
+               - Label each constraint or group of constraints
+               - Ensure every constraint identified in step 3 is formulated
+            
+            7. CONSTRUCT THE OBJECTIVE FUNCTION:
+               - Include ALL components identified in step 4
+               - Ensure correct signs (+ for maximization terms, - for minimization terms)
+               - Double-check coefficients against the problem description
+            
+            8. VERIFICATION CHECKLIST:
+               - Every statement in the problem description is reflected in the model
+               - All variables mentioned in constraints and objective are defined
+               - No "dangling" variables (defined but unused)
+               - Units are consistent across the model
+               - The model is mathematically coherent
+            
+            {format_instructions}
             """,
             input_variables=["problem_description"],
             partial_variables={"format_instructions": parser.get_format_instructions()}
         )
         
         # Generate the prompt
-        prompt = prompt_template.format(problem_description=state['problem_description'])
+        prompt = prompt_template.format(
+            problem_description=state['problem_description'],
+            error_context=error_context
+        )
         
         # Get structured output from LLM
         math_model = llm_client.send_structured_prompt(prompt, MathematicalModel)
@@ -88,25 +172,22 @@ def generate_mathematical_model(state: AgentState) -> AgentState:
         }
 
 # Agent 2: Model Validator
-### TODO: Current validation is basic, we should have another llm validate the model 
-# based on the initial problem
 def validate_mathematical_model(state: AgentState) -> AgentState:
-    """Validate the mathematical model."""
+    """Validate the mathematical model against the original problem description."""
     try:
         model = state["math_model"]
+        problem_description = state["problem_description"]
         
         # Check if we have a model
         if not model:
             raise ValueError("Model is missing")
             
-        # Pydantic has already validated the basic structure
-        # Now we just need to validate that all variables used in constraints and objective are defined
+        # First perform basic validation of the structure
         defined_vars = {v.name for v in model.variables}
         used_vars = set()
         
         # Extract variables from constraints
         for constraint in model.constraints:
-            # This is a simplified check - in a real implementation you'd use a parser
             expr = constraint.expression
             for var in defined_vars:
                 if var in expr:
@@ -122,13 +203,71 @@ def validate_mathematical_model(state: AgentState) -> AgentState:
         if not defined_vars.issuperset(used_vars):
             raise ValueError(f"Some variables are used but not defined: {used_vars - defined_vars}")
         
-        return {
-            **state,
-            "error": None,
-            "messages": state["messages"] + [
-                AIMessage(content="The mathematical model has been validated successfully.")
-            ]
-        }
+        # Now use LLM to validate the model against the problem description
+        # Use structured output parser instead of regex
+        parser = PydanticOutputParser(pydantic_object=ValidationResult)
+        
+        validation_prompt = f"""
+        Carefully validate if the mathematical model correctly captures the ESSENTIAL elements from the original problem description.
+
+        Original problem description:
+        {problem_description}
+
+        Mathematical model:
+        Variables: {[v.model_dump() for v in model.variables]}
+        Constraints: {[c.model_dump() for c in model.constraints]}
+        Objective: {model.objective.model_dump()}
+
+        SYSTEMATIC VALIDATION:
+        1. Extract the key decision elements and resources that directly affect the optimization outcome
+        2. Distinguish between essential elements (required for the model) and contextual information
+        3. For each essential entity, verify appropriate variables exist
+        4. Extract every critical limitation or requirement mentioned
+        5. Verify each critical constraint is properly represented
+        6. Identify all components that affect the objective value
+        7. Verify each component is represented in the objective function
+
+        Check specifically for:
+        1. Missing ESSENTIAL variables: List only variables that are REQUIRED but not defined
+        2. Missing CRITICAL constraints: List only constraints that are NECESSARY but not represented
+        3. Incorrect objective: Note if ANY part of the objective function is missing or incorrect
+
+        {parser.get_format_instructions()}
+
+        Only mark the model as invalid if it's missing elements that would materially affect the optimization result.
+        DO NOT flag variables or constraints as missing if they're mentioned in the problem but not actually needed for a correct mathematical model.
+        """
+            
+        # Get structured validation result
+        validation_result = llm_client.send_structured_prompt(validation_prompt, ValidationResult)
+        
+        # Check if validation passed
+        if validation_result.valid:
+            return {
+                **state,
+                "error": None,
+                "messages": state["messages"] + [
+                    AIMessage(content="The mathematical model has been validated successfully against the problem description.")
+                ]
+            }
+        else:
+            # Create detailed error message from structured result
+            error_msg = f"Model validation error: {validation_result.explanation}"
+            if validation_result.missing_variables:
+                error_msg += f"\nMissing variables: {', '.join(validation_result.missing_variables)}"
+            if validation_result.missing_constraints:
+                error_msg += f"\nMissing constraints: {', '.join(validation_result.missing_constraints)}"
+            if validation_result.incorrect_objective:
+                error_msg += f"\nIncorrect objective: {validation_result.incorrect_objective}"
+            
+            return {
+                **state,
+                "error": error_msg,
+                "messages": state["messages"] + [
+                    AIMessage(content=error_msg)
+                ]
+            }
+        
     except Exception as e:
         return {
             **state,
@@ -300,7 +439,7 @@ def execute_solver_code(state: AgentState) -> AgentState:
                 }
         
         # Ensure numeric values are Python native types (not PuLP-specific types)
-        if solution:
+        if solution and isinstance(solution, dict):
             if "objective_value" in solution:
                 solution["objective_value"] = float(solution["objective_value"])
             
@@ -353,7 +492,7 @@ def should_retry_model_generation(state: AgentState) -> Union[Literal["generate_
 def after_validation(state: AgentState) -> Union[Literal["generate_model"], Literal["generate_code"], Literal["end"]]:
     """Decide what to do after validation."""
     if state["error"]:
-        if state["model_generation_attempts"] < 3:
+        if state["model_generation_attempts"] < 5:
             return "generate_model"
         else:
             # We've tried 3 times and still have errors
@@ -361,7 +500,7 @@ def after_validation(state: AgentState) -> Union[Literal["generate_model"], Lite
     return "generate_code"
 
 # Define the decision function after code generation
-def after_code_generation(state: AgentState) -> Union[Literal["execute_code"], Literal["end"]]:
+def after_code_generation(state: AgentState) -> Union[Literal["execute_code"], Literal["generate_code"], Literal["end"]]:
     """Decide what to do after code generation."""
     if state["error"]:
         if state["code_generation_attempts"] < 3:
